@@ -2,7 +2,7 @@
  * @file ota_loader_main.c
  * @brief Main OTA loader application
  * 
- * This is the factory/loader firmware that lives permanently on the ESP32-S3.
+ * This is the factory/loader firmware that lives permanently on the ESP32-C3.
  * It provides:
  * - USB recovery mode for bootloader reflashing
  * - Wi-Fi connectivity
@@ -23,6 +23,7 @@
 #include "wifi_manager.h"
 #include "ota_manager.h"
 #include "usb_recovery.h"
+#include "provisioning.h"
 
 static const char *TAG = "ota_loader";
 
@@ -33,7 +34,7 @@ void print_banner(void)
 {
     printf("\n");
     printf("╔════════════════════════════════════════════╗\n");
-    printf("║    ESP32-S3 OTA Loader & App Manager      ║\n");
+    printf("║    ESP32-C3 OTA Loader & App Manager      ║\n");
     printf("║                                            ║\n");
     printf("║  Factory firmware - cannot be overwritten ║\n");
     printf("╚════════════════════════════════════════════╝\n");
@@ -172,23 +173,21 @@ void app_main(void)
     // Display current partition info
     ota_manager_print_partition_info();
     
-    // Initialize Wi-Fi
-    printf("\n=== Initializing Wi-Fi ===\n");
+    // Initialize Wi-Fi and try connecting as STA first
+    printf("\n=== Initializing Wi-Fi (STA) ===\n");
     ret = wifi_manager_init();
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "Wi-Fi initialization failed: %s", esp_err_to_name(ret));
+    if (ret == ESP_OK) {
+        printf("Waiting for Wi-Fi connection...\n");
+        ret = wifi_manager_wait_connected(15000); // 15s timeout
     }
-    
-    // Wait for connection (with timeout)
-    printf("Waiting for Wi-Fi connection...\n");
-    ret = wifi_manager_wait_connected(30000); // 30 second timeout
+
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "Wi-Fi connection failed or timed out");
-        printf("\n*** WARNING: No Wi-Fi connection ***\n");
-        printf("OTA features will not be available.\n");
-        printf("Check your Wi-Fi credentials in menuconfig.\n\n");
-    } else {
-        printf("Wi-Fi connected successfully!\n");
+        ESP_LOGW(TAG, "STA connect failed. Starting SoftAP provisioning portal.");
+        // Start SoftAP provisioning portal
+    provisioning_start_softap("BYU_Namebadge", "", 6);
+    printf("\nConnect to Wi-Fi: BYU_Namebadge (open)\n");
+        printf("Then open: http://192.168.4.1/\n");
+        printf("Enter your Wi-Fi SSID/password.\n");
     }
     
     // Main menu loop

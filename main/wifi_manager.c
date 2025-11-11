@@ -70,13 +70,18 @@ esp_err_t wifi_manager_init(void)
                                                         NULL,
                                                         &instance_got_ip));
 
-    wifi_config_t wifi_config = {
-        .sta = {
-            .ssid = WIFI_SSID,
-            .password = WIFI_PASSWORD,
-            .threshold.authmode = WIFI_AUTH_WPA2_PSK,
-        },
-    };
+    wifi_config_t wifi_config = { 0 }; // zero-init
+    strlcpy((char*)wifi_config.sta.ssid, WIFI_SSID, sizeof(wifi_config.sta.ssid));
+    strlcpy((char*)wifi_config.sta.password, WIFI_PASSWORD, sizeof(wifi_config.sta.password));
+
+    // Handle open network (no password) differently so authmode threshold doesn't block connection
+    if (strlen(WIFI_PASSWORD) == 0) {
+        wifi_config.sta.threshold.authmode = WIFI_AUTH_OPEN;
+        ESP_LOGI(TAG, "Configuring open Wi-Fi network: %s", WIFI_SSID);
+    } else {
+        wifi_config.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
+        ESP_LOGI(TAG, "Configuring secured Wi-Fi network: %s", WIFI_SSID);
+    }
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));

@@ -2,15 +2,15 @@
 
 menu "OTA Loader Configuration"
 
-    config WIFI_SSID
-        string "WiFi SSID"
-        default "myssid"
+  config WIFI_SSID
+    string "WiFi SSID"
+    default "BYUI_Visitor"
         help
             SSID (network name) for the ESP32 to connect to.
 
-    config WIFI_PASSWORD
-        string "WiFi Password"
-        default "mypassword"
+  config WIFI_PASSWORD
+    string "WiFi Password (leave empty for open network)"
+    default ""
         help
             WiFi password (WPA or WPA2) for the ESP32 to use.
 
