@@ -1,8 +1,8 @@
 # ESP32-S3 OTA Loader Partition Table
 # Name,     Type, SubType,  Offset,   Size,     Flags
-nvs,        data, nvs,      0x9000,   0x6000,
-otadata,    data, ota,      0xf000,   0x2000,
-loader,     app,  factory,  0x10000,  1M,       # Permanent loader/supervisor
-app_0,      app,  ota_0,    ,         1M,       # OTA app slot 0
-app_1,      app,  ota_1,    ,         1M,       # OTA app slot 1
-spiffs,     data, spiffs,   ,         1M,       # File storage for configs/certs
+nvs,        data, nvs,      0x9000,   0x5000,
+otadata,    data, ota,      0xe000,   0x2000,
+loader,     app,  factory,  0x10000,  1M,
+app_0,      app,  ota_0,    ,         1M,
+app_1,      app,  ota_1,    ,         1M,
+spiffs,     data, spiffs,   ,         0x50000,
