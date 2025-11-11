@@ -1,0 +1,19 @@
+{
+  "apps": [
+    {
+      "name": "LED Controller",
+      "version": "1.0.0",
+      "url": "http://192.168.1.100:8080/apps/led_controller.bin"
+    },
+    {
+      "name": "Weather Station",
+      "version": "2.1.3",
+      "url": "http://192.168.1.100:8080/apps/weather_station.bin"
+    },
+    {
+      "name": "Sensor Monitor",
+      "version": "1.5.2",
+      "url": "http://192.168.1.100:8080/apps/sensor_monitor.bin"
+    }
+  ]
+}

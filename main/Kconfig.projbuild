@@ -1,0 +1,40 @@
+# ESP32-S3 OTA Loader Configuration
+
+menu "OTA Loader Configuration"
+
+    config WIFI_SSID
+        string "WiFi SSID"
+        default "myssid"
+        help
+            SSID (network name) for the ESP32 to connect to.
+
+    config WIFI_PASSWORD
+        string "WiFi Password"
+        default "mypassword"
+        help
+            WiFi password (WPA or WPA2) for the ESP32 to use.
+
+    config WIFI_MAXIMUM_RETRY
+        int "Maximum retry attempts"
+        default 5
+        help
+            Set the maximum number of retry attempts for WiFi connection.
+
+    config MANIFEST_URL
+        string "App Manifest URL"
+        default "http://192.168.1.100:8080/manifest.json"
+        help
+            URL of the JSON manifest file containing available apps.
+            
+            Example manifest format:
+            {
+              "apps": [
+                {
+                  "name": "LED Controller",
+                  "version": "1.0.0",
+                  "url": "http://192.168.1.100:8080/apps/led_ctrl.bin"
+                }
+              ]
+            }
+
+endmenu
