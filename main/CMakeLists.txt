@@ -19,4 +19,5 @@ idf_component_register(
         usb
         fatfs
         app_update
+        spi_flash
 )
