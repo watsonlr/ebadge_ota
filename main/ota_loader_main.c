@@ -16,6 +16,8 @@
 #include "freertos/task.h"
 #include "esp_system.h"
 #include "esp_log.h"
+#include "esp_netif.h"
+#include "esp_event.h"
 #include "nvs_flash.h"
 #include "esp_partition.h"
 #include "esp_ota_ops.h"
@@ -173,24 +175,65 @@ void app_main(void)
     // Display current partition info
     ota_manager_print_partition_info();
     
-    // Initialize Wi-Fi and try connecting as STA first
-    printf("\n=== Initializing Wi-Fi (STA) ===\n");
-    ret = wifi_manager_init();
-    if (ret == ESP_OK) {
-        printf("Waiting for Wi-Fi connection...\n");
-        ret = wifi_manager_wait_connected(15000); // 15s timeout
-    }
-
+    // Start directly in provisioning mode
+    printf("\n=== Starting Provisioning Mode ===\n");
+    
+    // Initialize network stack
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    
+    // Start SoftAP provisioning portal
+    ret = provisioning_start_softap("BYUI_NameBadge", "", 6);
     if (ret != ESP_OK) {
-        ESP_LOGW(TAG, "STA connect failed. Starting SoftAP provisioning portal.");
-        // Start SoftAP provisioning portal
-    provisioning_start_softap("BYU_Namebadge", "", 6);
-    printf("\nConnect to Wi-Fi: BYU_Namebadge (open)\n");
-        printf("Then open: http://192.168.4.1/\n");
-        printf("Enter your Wi-Fi SSID/password.\n");
+        ESP_LOGE(TAG, "Failed to start provisioning portal: %s", esp_err_to_name(ret));
+        printf("\n⚠️  ERROR: Could not start provisioning portal!\n");
+        printf("Check serial output for details.\n");
+        while (1) {
+            vTaskDelay(pdMS_TO_TICKS(10000));
+        }
     }
     
-    // Main menu loop
+    printf("\n╔════════════════════════════════════════════╗\n");
+    printf("║   Wi-Fi Provisioning Mode Active          ║\n");
+    printf("╚════════════════════════════════════════════╝\n");
+    printf("\n1. Connect your phone/laptop to Wi-Fi: BYUI_NameBadge (open)\n");
+    printf("2. Open browser to: http://192.168.4.1/\n");
+    printf("3. Click 'Scan Networks' to see available networks\n");
+    printf("4. Enter SSID and password, click Save\n");
+    printf("5. Reboot the device\n\n");
+    printf("Provisioning portal is running...\n");
+    printf("Press Ctrl+C to exit and reboot manually.\n\n");
+    
+    // Wait indefinitely for user to provision via web portal
+    while (!provisioning_was_configured()) {
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+    
+    // Credentials saved - now connect to the configured network
+    printf("\n✓ Credentials saved!\n");
+    printf("Stopping provisioning portal and connecting to configured network...\n\n");
+    
+    // Stop provisioning
+    provisioning_stop();
+    vTaskDelay(pdMS_TO_TICKS(500));
+    
+    // Initialize wifi_manager and connect
+    ret = wifi_manager_init();
+    if (ret == ESP_OK) {
+        printf("Connecting to saved Wi-Fi network...\n");
+        ret = wifi_manager_wait_connected(30000); // 30s timeout
+        if (ret == ESP_OK) {
+            printf("\n✓ Wi-Fi connected successfully!\n\n");
+        } else {
+            ESP_LOGE(TAG, "Failed to connect to saved network");
+            printf("\n⚠️  Could not connect to the saved network.\n");
+            printf("Please check credentials and reboot to try again.\n");
+        }
+    }
+    
+    // Continue to main menu
+    printf("\n=== Main Menu ===\n\n");
+    
     while (1) {
         show_menu();
         int choice = get_user_choice();

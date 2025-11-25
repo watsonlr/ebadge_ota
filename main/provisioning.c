@@ -29,8 +29,9 @@ static const char *HTML_PAGE =
     "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Provision</title></head><body>"
     "<h2>ESP32 Provisioning</h2>"
     "<button onclick=\"scan()\">Scan Networks</button><div id=results></div>"
-    "<form onsubmit=\"return sendCreds(event)\">SSID:<br><input name=ssid required><br>Password:<br><input name=password><br><button type=submit>Save</button></form>"
-    "<script>function scan(){fetch('/scan').then(function(r){return r.json()}).then(function(j){var o='<ul>';for(var i=0;i<j.networks.length;i++){var n=j.networks[i];o+='<li>'+n.ssid+' (RSSI '+n.rssi+')'+(n.auth!=0?' SECURED':'')+'</li>'; } o+='</ul>'; document.getElementById('results').innerHTML=o;});}"
+    "<form onsubmit=\"return sendCreds(event)\">SSID:<br><select id=ssid name=ssid required><option value=''>-- Select Network --</option></select><br>Password:<br><input id=password name=password><br><button type=submit>Save</button></form>"
+    "<script>function scan(){fetch('/scan').then(function(r){return r.json()}).then(function(j){var o='<ul>';var sel=document.getElementById('ssid');sel.innerHTML='<option value=\"\">-- Select Network --</option>';for(var i=0;i<j.networks.length;i++){var n=j.networks[i];o+='<li onclick=\"selectSSID(\\''+n.ssid+'\\','+n.auth+')\">'+n.ssid+' (RSSI '+n.rssi+')'+(n.auth!=0?' SECURED':'')+'</li>';var opt=document.createElement('option');opt.value=n.ssid;opt.text=n.ssid+(n.auth!=0?' (secured)':'');sel.appendChild(opt);} o+='</ul>'; document.getElementById('results').innerHTML=o;});}"
+    "function selectSSID(s,a){document.getElementById('ssid').value=s;if(a==0){document.getElementById('password').value='';document.getElementById('password').disabled=true;}else{document.getElementById('password').disabled=false;document.getElementById('password').focus();}}"
     "function sendCreds(e){e.preventDefault();var f=new FormData(e.target);fetch('/configure',{method:'POST',body:new URLSearchParams(f)}).then(function(r){return r.text()}).then(function(t){alert(t);});return false;}" 
     "</script></body></html>";
 
@@ -179,18 +180,26 @@ esp_err_t provisioning_start_softap(const char *ap_ssid, const char *ap_pass, in
     ESP_LOGI(PROV_TAG, "Starting SoftAP SSID='%s'", ap_ssid);
 
     esp_err_t err;
-    err = esp_netif_init();
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
-        return err;
+    
+    // Create both STA and AP netif for APSTA mode (allows scanning while serving AP)
+    esp_netif_t *sta_netif = esp_netif_create_default_wifi_sta();
+    if (!sta_netif) {
+        ESP_LOGE(PROV_TAG, "Failed to create STA netif");
     }
-    err = esp_event_loop_create_default();
-    if (err != ESP_OK && err != ESP_ERR_INVALID_STATE) {
-        return err;
+    
+    esp_netif_t *ap_netif = esp_netif_create_default_wifi_ap();
+    if (!ap_netif) {
+        ESP_LOGE(PROV_TAG, "Failed to create AP netif");
+        return ESP_FAIL;
     }
-    esp_netif_create_default_wifi_ap();
 
+    // Initialize Wi-Fi
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+    err = esp_wifi_init(&cfg);
+    if (err != ESP_OK) {
+        ESP_LOGE(PROV_TAG, "esp_wifi_init failed: %s", esp_err_to_name(err));
+        return err;
+    }
 
     wifi_config_t ap_config = { 0 };
     strlcpy((char*)ap_config.ap.ssid, ap_ssid, sizeof(ap_config.ap.ssid));
@@ -202,11 +211,24 @@ esp_err_t provisioning_start_softap(const char *ap_ssid, const char *ap_pass, in
         strlcpy((char*)ap_config.ap.password, ap_pass, sizeof(ap_config.ap.password));
     }
 
-    // Stop any running Wi-Fi first
-    esp_wifi_stop();
-    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
-    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &ap_config));
-    ESP_ERROR_CHECK(esp_wifi_start());
+    // Use APSTA mode so we can scan for networks while also serving as AP
+    err = esp_wifi_set_mode(WIFI_MODE_APSTA);
+    if (err != ESP_OK) {
+        ESP_LOGE(PROV_TAG, "esp_wifi_set_mode failed: %s", esp_err_to_name(err));
+        return err;
+    }
+    err = esp_wifi_set_config(WIFI_IF_AP, &ap_config);
+    if (err != ESP_OK) {
+        ESP_LOGE(PROV_TAG, "esp_wifi_set_config failed: %s", esp_err_to_name(err));
+        return err;
+    }
+    err = esp_wifi_start();
+    if (err != ESP_OK) {
+        ESP_LOGE(PROV_TAG, "esp_wifi_start failed: %s", esp_err_to_name(err));
+        return err;
+    }
+    
+    ESP_LOGI(PROV_TAG, "SoftAP started successfully");
 
     // No initial scan; /scan handler performs a blocking scan on request
 

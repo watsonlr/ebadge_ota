@@ -31,4 +31,11 @@ esp_err_t wifi_manager_wait_connected(uint32_t timeout_ms);
  */
 bool wifi_manager_is_connected(void);
 
+/**
+ * @brief Deinitialize Wi-Fi manager
+ * 
+ * Stops Wi-Fi and cleans up resources
+ */
+void wifi_manager_deinit(void);
+
 #endif // WIFI_MANAGER_H

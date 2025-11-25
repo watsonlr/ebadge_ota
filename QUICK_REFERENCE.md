@@ -3,23 +3,43 @@
 ## 🚀 Quick Start Commands
 
 ```bash
-# Initial setup
-idf.py menuconfig              # Configure Wi-Fi & manifest URL
-idf.py build                   # Build the loader
-idf.py -p COM3 erase-flash     # Erase (first time only)
-idf.py -p COM3 flash monitor   # Flash and monitor
+# WSL bash: set up ESP-IDF environment (once per shell)
+. "$HOME/esp/esp-idf/export.sh"
 
-# Start OTA server
-python3 simple_ota_server.py   # Serves on port 8080
+# Initial setup for ESP32-C3
+idf.py set-target esp32c3
+idf.py menuconfig                    # Configure Wi-Fi & manifest URL
+idf.py build                         # Build the loader
+idf.py -p /dev/ttyS10 erase-flash    # Erase (first time only); COM10 -> /dev/ttyS10
+idf.py -p /dev/ttyS10 -b 115200 flash monitor  # Flash and monitor
+
+# Start OTA server (WSL bash)
+python3 simple_ota_server.py         # Serves on port 8080
 ```
 
-## 📂 File Structure
+## �️ Windows vs WSL Notes
+
+| Scenario | Recommended Shell | Serial Port Arg | Notes |
+|----------|-------------------|-----------------|-------|
+| Normal build/flash/monitor | ESP-IDF Windows PowerShell/Command Prompt | `-p COM10` (example) | Easiest; avoids line-ending and device mapping issues |
+| Using WSL (Linux bash) | WSL bash with a Linux-installed ESP-IDF | `-p /dev/ttyS10` (COM10→`/dev/ttyS10`) | Ensure scripts have LF endings; run `. $HOME/esp/esp-idf/export.sh` |
+| Reusing Windows IDF inside WSL | Not recommended | `/dev/ttyS*` | Convert line endings with `dos2unix tools/idf.py` if `/usr/bin/env: 'python\r'` error appears |
+
+Quick tips:
+1. Don’t mix PowerShell syntax (`$env:VAR`, leading `&`) in bash; use `export VAR=value`.
+2. Error `/usr/bin/env: 'python\r': No such file or directory` means the script has Windows (CRLF) line endings—convert with `dos2unix` or run via `python3 tools/idf.py`.
+3. Exit `idf.py monitor` with `Ctrl+]` (or `Ctrl+T` then `Ctrl+X`).
+4. Always run `idf.py set-target esp32c3` once after switching chips.
+5. For just monitoring (already flashed): `idf.py -p COM10 -b 115200 monitor` (Windows) or `idf.py -p /dev/ttyS10 -b 115200 monitor` (WSL).
+
+
+## �📂 File Structure
 
 ```
 ebadge_ota/
 ├── partitions.csv              ← Custom partition table
 ├── CMakeLists.txt              ← Project build config
-├── sdkconfig.defaults          ← Default ESP32-S3 settings
+├── sdkconfig.defaults          ← Default ESP32-C3 settings
 ├── simple_ota_server.py        ← Development OTA server
 ├── manifest.json.example       ← Example manifest
 ├── README.md                   ← Full documentation
@@ -119,13 +139,13 @@ ebadge_ota/
 
 ### Option 2: Manual Bootloader Flash
 ```bash
-idf.py -p COM3 bootloader-flash
+idf.py -p /dev/ttyS10 bootloader-flash
 ```
 
 ### Option 3: Complete Reflash
 ```bash
-idf.py -p COM3 erase-flash
-idf.py -p COM3 flash
+idf.py -p /dev/ttyS10 erase-flash
+idf.py -p /dev/ttyS10 flash
 ```
 
 ### Option 4: USB Recovery (when implemented)
