@@ -168,6 +168,8 @@
   - MISO: GPIO10 (shared with display)
 
 ### Display (TFT)
+- **Model**: ILI9341-based 2.4" TFT LCD
+- **Resolution**: 240x320 pixels
 - **Interface**: SPI2 (shared with SD Card)
 - **GPIOs**:
   - CS: GPIO9

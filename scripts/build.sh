@@ -7,5 +7,5 @@ if [ -z "${IDF_PATH:-}" ]; then
     source "/mnt/c/Espressif/frameworks/esp-idf-v5.3.1/export.sh"
   fi
 fi
-idf.py set-target esp32c3
+idf.py set-target esp32s3
 idf.py build
