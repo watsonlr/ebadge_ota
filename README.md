@@ -43,6 +43,38 @@ This project provides **two complementary methods** for updating firmware:
 - **Wi-Fi Provisioning**: Built-in SoftAP portal for easy network configuration
 - **Educational Focus**: Designed for classroom deployment where students can experiment safely
 
+## 🎮 Included Games & Apps
+
+This project includes a collection of classic arcade games ready to run on your eBadge! All games feature full button controls, smooth 60 FPS gameplay, and beautiful LCD graphics.
+
+### Game Launcher
+A visual menu system that displays all available games with icons and descriptions. Navigate with the D-pad and launch games with button A.
+
+### Available Games
+- **Pac-Man** 🟡 - Classic maze chase with 4 ghosts, power pellets, and AI
+- **Tetris** 🔷 - Stack blocks and clear lines with 7 tetrominos
+- **Frogger** 🐸 - Cross roads and rivers in this arcade classic
+
+### Building & Flashing Games
+
+**Quick Build All Games:**
+```bash
+# Windows (ESP-IDF PowerShell/CMD)
+build_all.bat
+
+# Linux/macOS (with ESP-IDF sourced)
+./build_all.sh
+```
+
+**Flash Game Launcher:**
+```bash
+cd Apps/game_launcher
+idf.py -p COM3 flash  # Windows
+idf.py -p /dev/ttyUSB0 flash  # Linux
+```
+
+See [BUILD_GUIDE.md](BUILD_GUIDE.md) for detailed instructions and [Apps/README.md](Apps/README.md) for game documentation.
+
 ## System Architecture
 
 ### The Two-Partition Strategy
