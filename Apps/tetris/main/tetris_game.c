@@ -529,15 +529,17 @@ static void draw_ui(void) {
     
     // Game state messages
     if (game.game_over) {
-        lcd_fill_rect(40, SCREEN_HEIGHT/2 - 20, 160, 50, COLOR_BLACK);
-        lcd_draw_rect(40, SCREEN_HEIGHT/2 - 20, 160, 50, COLOR_RED);
-        lcd_draw_string(60, SCREEN_HEIGHT/2 - 10, "GAME OVER", COLOR_RED, COLOR_BLACK);
-        lcd_draw_string(50, SCREEN_HEIGHT/2 + 5, "PRESS B TO", COLOR_WHITE, COLOR_BLACK);
-        lcd_draw_string(60, SCREEN_HEIGHT/2 + 20, "RESTART", COLOR_WHITE, COLOR_BLACK);
+        lcd_fill_rect(40, SCREEN_HEIGHT/2 - 30, 160, 65, COLOR_BLACK);
+        lcd_draw_rect(40, SCREEN_HEIGHT/2 - 30, 160, 65, COLOR_RED);
+        lcd_draw_string(60, SCREEN_HEIGHT/2 - 20, "GAME OVER", COLOR_RED, COLOR_BLACK);
+        lcd_draw_string(50, SCREEN_HEIGHT/2, "Press B to", COLOR_WHITE, COLOR_BLACK);
+        lcd_draw_string(45, SCREEN_HEIGHT/2 + 15, "return to menu", COLOR_WHITE, COLOR_BLACK);
     } else if (game.paused) {
-        lcd_fill_rect(60, SCREEN_HEIGHT/2 - 10, 120, 25, COLOR_BLACK);
-        lcd_draw_rect(60, SCREEN_HEIGHT/2 - 10, 120, 25, COLOR_WHITE);
-        lcd_draw_string(80, SCREEN_HEIGHT/2, "PAUSED", COLOR_YELLOW, COLOR_BLACK);
+        lcd_fill_rect(40, SCREEN_HEIGHT/2 - 30, 160, 60, COLOR_BLACK);
+        lcd_draw_rect(40, SCREEN_HEIGHT/2 - 30, 160, 60, COLOR_YELLOW);
+        lcd_draw_string(75, SCREEN_HEIGHT/2 - 20, "PAUSED", COLOR_YELLOW, COLOR_BLACK);
+        lcd_draw_string(50, SCREEN_HEIGHT/2 - 5, "A: Resume", COLOR_WHITE, COLOR_BLACK);
+        lcd_draw_string(50, SCREEN_HEIGHT/2 + 10, "B: Exit to menu", COLOR_WHITE, COLOR_BLACK);
     }
 }
 

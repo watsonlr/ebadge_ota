@@ -171,6 +171,11 @@
 - **Model**: ILI9341-based 2.4" TFT LCD
 - **Resolution**: 240x320 pixels
 - **Interface**: SPI2 (shared with SD Card)
+- **Color Format**: RGB565 (16-bit)
+  - **Byte Order**: Little-endian (low byte first, high byte second)
+  - Format: `RRRRRGGGGGGBBBBB` (5-6-5 bits)
+  - Example: Green (0x07E0) = `0xE0, 0x07` on SPI bus
+  - Note: Send colors as `{color & 0xFF, color >> 8}` not `{color >> 8, color & 0xFF}`
 - **GPIOs**:
   - CS: GPIO9
   - DC (Data/Command): GPIO13
@@ -178,6 +183,10 @@
   - CLK: GPIO12 (shared)
   - MOSI: GPIO11 (shared)
   - MISO: GPIO10 (shared)
+- **SPI Configuration**:
+  - Clock Speed: 40 MHz (typical)
+  - Mode: 0 (CPOL=0, CPHA=0)
+  - Bit Order: MSB first
 - **Note**: SPI2 bus is shared between display and SD card. Manage chip selects carefully.
 
 ### Charging (TP4056)

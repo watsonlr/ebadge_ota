@@ -13,11 +13,12 @@
 #include <stdbool.h>
 #include "driver/spi_master.h"
 
-// Button GPIO Definitions
-#define BTN_UP     17
-#define BTN_DOWN   16
-#define BTN_LEFT   14
-#define BTN_RIGHT  15
+// Button GPIO Definitions (Rotated 90° for portrait mode)
+// Physical: Right->Up, Left->Down, Up->Left, Down->Right
+#define BTN_UP     15  // Was RIGHT (GPIO 15)
+#define BTN_DOWN   14  // Was LEFT (GPIO 14)
+#define BTN_LEFT   17  // Was UP (GPIO 17)
+#define BTN_RIGHT  16  // Was DOWN (GPIO 16)
 #define BTN_A      38
 #define BTN_B      18
 
@@ -123,6 +124,7 @@ typedef struct {
     uint32_t time_remaining;
     bool game_over;
     bool level_complete;
+    bool paused;
     uint32_t game_tick;
     uint32_t time_tick;
 } frogger_state_t;

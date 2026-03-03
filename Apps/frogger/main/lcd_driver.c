@@ -185,7 +185,8 @@ void lcd_fill_screen(uint16_t color) {
 void lcd_draw_pixel(int x, int y, uint16_t color) {
     if (x < 0 || x >= LCD_WIDTH || y < 0 || y >= LCD_HEIGHT) return;
     lcd_set_window(x, y, x, y);
-    uint8_t c[2] = {color>>8, color&0xFF};
+    // Send as little-endian (low byte first, high byte second)
+    uint8_t c[2] = {color&0xFF, color>>8};
     lcd_data(c, 2);
 }
 
@@ -195,7 +196,8 @@ void lcd_fill_rect(int x, int y, int w, int h, uint16_t color) {
     if (y + h > LCD_HEIGHT) h = LCD_HEIGHT - y;
     
     lcd_set_window(x, y, x+w-1, y+h-1);
-    uint8_t c[2] = {color>>8, color&0xFF};
+    // Send as little-endian (low byte first, high byte second)
+    uint8_t c[2] = {color&0xFF, color>>8};
     for (int i=0; i<w*h; i++) {
         lcd_data(c, 2);
     }

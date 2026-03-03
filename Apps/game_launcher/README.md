@@ -106,7 +106,9 @@ game_launcher/
 ### Display
 
 - **Resolution**: 240x320 pixels
-- **Color Format**: RGB565
+- **Color Format**: RGB565 (16-bit, little-endian)
+  - Byte order: Low byte first, high byte second
+  - Send as: `{color & 0xFF, color >> 8}`
 - **Driver**: ILI9341 via SPI
 - **Refresh Rate**: ~60 FPS
 

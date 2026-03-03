@@ -93,11 +93,14 @@ static void init_buttons(void) {
 
 static bool read_button(int gpio_num, int btn_idx) {
     uint32_t now = esp_timer_get_time() / 1000;  // ms
-    if (gpio_get_level(gpio_num) == 0) {  // Active low
+    int level = gpio_get_level(gpio_num);
+    
+    if (level == 0) {  // Active low
         if (!button_pressed[btn_idx]) {
             if (now - button_last_press[btn_idx] > BUTTON_DEBOUNCE_MS) {
                 button_pressed[btn_idx] = true;
                 button_last_press[btn_idx] = now;
+                ESP_LOGI(TAG, "Button on GPIO %d pressed (idx=%d)", gpio_num, btn_idx);
                 return true;
             }
         }
@@ -116,6 +119,7 @@ void frogger_reset_game(void) {
     game.level = 1;
     game.game_over = false;
     game.level_complete = false;
+    game.paused = false;
     game.game_tick = 0;
     game.time_tick = 0;
     game.time_remaining = 60;  // 60 seconds per level
@@ -130,11 +134,18 @@ void frogger_reset_game(void) {
     game.frog.on_platform = false;
     game.frog.anim_frame = 0;
     
+    ESP_LOGI(TAG, "Frog initialized at position (%d, %d)", game.frog.x, game.frog.y);
+    
     // Initialize level
     init_level();
     
-    // Initial render
+    // Clear screen first
     lcd_fill_screen(COLOR_BLACK);
+    
+    // Draw static background once
+    for (int y = 0; y < GRID_HEIGHT; y++) {
+        draw_lane(y);
+    }
 }
 
 static void init_level(void) {
@@ -387,6 +398,7 @@ static void return_to_launcher(void) {
 void frogger_handle_input(void) {
     if (game.game_over) {
         if (read_button(BTN_B, 5)) {
+            ESP_LOGI(TAG, "Button B pressed - returning to launcher");
             return_to_launcher();
         }
         return;
@@ -410,23 +422,45 @@ void frogger_handle_input(void) {
         return;
     }
     
+    if (game.paused) {
+        // Button A - unpause
+        if (read_button(BTN_A, 4)) {
+            game.paused = false;
+        }
+        // Button B - return to launcher
+        if (read_button(BTN_B, 5)) {
+            return_to_launcher();
+        }
+        return;
+    }
+    
     // Movement
     if (read_button(BTN_UP, 0)) {
+        ESP_LOGI(TAG, "UP pressed - moving frog");
         move_frog(0, 1);
     }
     else if (read_button(BTN_DOWN, 1)) {
+        ESP_LOGI(TAG, "DOWN pressed - moving frog");
         move_frog(0, -1);
     }
     else if (read_button(BTN_LEFT, 2)) {
+        ESP_LOGI(TAG, "LEFT pressed - moving frog");
         move_frog(-1, 0);
     }
     else if (read_button(BTN_RIGHT, 3)) {
+        ESP_LOGI(TAG, "RIGHT pressed - moving frog");
         move_frog(1, 0);
+    }
+    
+    // Pause game (Button B during gameplay)
+    if (read_button(BTN_B, 5)) {
+        ESP_LOGI(TAG, "Button B pressed - pausing game");
+        game.paused = true;
     }
 }
 
 void frogger_update(void) {
-    if (game.game_over || game.level_complete) return;
+    if (game.game_over || game.level_complete || game.paused) return;
     
     game.game_tick++;
     
@@ -452,23 +486,37 @@ void frogger_update(void) {
 }
 
 void frogger_render(void) {
-    // Draw lanes
-    for (int y = 0; y < GRID_HEIGHT; y++) {
-        draw_lane(y);
+    // Track last frog position to clear trails
+    static int last_frog_x = -1;
+    static int last_frog_y = -1;
+    
+    // Clear old frog position if it moved
+    if (last_frog_x >= 0 && (last_frog_x != game.frog.x || last_frog_y != game.frog.y)) {
+        int last_sy = grid_to_screen_y(last_frog_y);
+        // Get lane color to clear with
+        lane_type_t type = game.lanes[last_frog_y].type;
+        uint16_t color = (type == LANE_ROAD) ? COLOR_GRAY : 
+                        (type == LANE_RIVER) ? COLOR_BLUE : COLOR_DARK_GREEN;
+        int last_sx = grid_to_screen_x(last_frog_x);
+        lcd_fill_rect(last_sx, last_sy, GRID_SIZE, GRID_SIZE, color);
     }
     
-    // Draw objects
-    for (int i = 0; i < game.object_count; i++) {
-        draw_object(&game.objects[i]);
-    }
-    
-    // Draw frog
+    // Draw frog at new position
     if (game.frog.alive) {
         draw_frog();
+        last_frog_x = game.frog.x;
+        last_frog_y = game.frog.y;
+    } else {
+        last_frog_x = -1;
+        last_frog_y = -1;
     }
     
-    // Draw UI
-    draw_ui();
+    // Update UI only every 10 frames to save time
+    static int ui_counter = 0;
+    if (++ui_counter >= 10) {
+        ui_counter = 0;
+        draw_ui();
+    }
 }
 
 static void draw_lane(int y) {
@@ -537,14 +585,20 @@ static void draw_frog(void) {
     int sx = grid_to_screen_x(game.frog.x);
     int sy = grid_to_screen_y(game.frog.y);
     
-    // Simple frog representation
-    lcd_fill_circle(sx + GRID_SIZE/2, sy + GRID_SIZE/2, GRID_SIZE/2 - 2, COLOR_GREEN);
+    // ULTRA BRIGHT GREEN - use explicit RGB565 value
+    // RGB565: Green = 0b00000_111111_00000 = 0x07E0
+    uint16_t bright_green = 0x07E0;
     
-    // Eyes
-    lcd_fill_circle(sx + 4, sy + 4, 2, COLOR_YELLOW);
-    lcd_fill_circle(sx + GRID_SIZE - 4, sy + 4, 2, COLOR_YELLOW);
-    lcd_draw_pixel(sx + 4, sy + 4, COLOR_BLACK);
-    lcd_draw_pixel(sx + GRID_SIZE - 4, sy + 4, COLOR_BLACK);
+    // Large filled square with bright green
+    lcd_fill_rect(sx + 1, sy + 1, GRID_SIZE - 2, GRID_SIZE - 2, bright_green);
+    
+    // Thick white border to make it stand out
+    lcd_draw_rect(sx, sy, GRID_SIZE, GRID_SIZE, 0xFFFF);
+    lcd_draw_rect(sx + 1, sy + 1, GRID_SIZE - 2, GRID_SIZE - 2, 0xFFFF);
+    
+    // Big yellow eyes
+    lcd_fill_rect(sx + 3, sy + 3, 4, 4, 0xFFE0);
+    lcd_fill_rect(sx + GRID_SIZE - 7, sy + 3, 4, 4, 0xFFE0);
 }
 
 static void draw_ui(void) {
@@ -571,19 +625,25 @@ static void draw_ui(void) {
     
     // Game state messages
     if (game.game_over) {
-        lcd_fill_rect(40, SCREEN_HEIGHT/2 - 30, 160, 60, COLOR_BLACK);
-        lcd_draw_rect(40, SCREEN_HEIGHT/2 - 30, 160, 60, COLOR_RED);
-        lcd_draw_string(70, SCREEN_HEIGHT/2 - 15, "GAME OVER", COLOR_RED, COLOR_BLACK);
+        lcd_fill_rect(40, SCREEN_HEIGHT/2 - 30, 160, 65, COLOR_BLACK);
+        lcd_draw_rect(40, SCREEN_HEIGHT/2 - 30, 160, 65, COLOR_RED);
+        lcd_draw_string(70, SCREEN_HEIGHT/2 - 20, "GAME OVER", COLOR_RED, COLOR_BLACK);
         snprintf(buf, sizeof(buf), "SCORE:%lu", (unsigned long)game.score);
-        lcd_draw_string(60, SCREEN_HEIGHT/2, buf, COLOR_WHITE, COLOR_BLACK);
-        lcd_draw_string(50, SCREEN_HEIGHT/2 + 15, "PRESS B TO", COLOR_WHITE, COLOR_BLACK);
-        lcd_draw_string(60, SCREEN_HEIGHT/2 + 30, "RESTART", COLOR_WHITE, COLOR_BLACK);
+        lcd_draw_string(60, SCREEN_HEIGHT/2 - 5, buf, COLOR_WHITE, COLOR_BLACK);
+        lcd_draw_string(45, SCREEN_HEIGHT/2 + 10, "Press B to", COLOR_WHITE, COLOR_BLACK);
+        lcd_draw_string(40, SCREEN_HEIGHT/2 + 25, "return to menu", COLOR_WHITE, COLOR_BLACK);
     } else if (game.level_complete) {
-        lcd_fill_rect(40, SCREEN_HEIGHT/2 - 20, 160, 50, COLOR_BLACK);
-        lcd_draw_rect(40, SCREEN_HEIGHT/2 - 20, 160, 50, COLOR_GREEN);
-        lcd_draw_string(50, SCREEN_HEIGHT/2 - 5, "LEVEL DONE!", COLOR_GREEN, COLOR_BLACK);
-        lcd_draw_string(50, SCREEN_HEIGHT/2 + 10, "PRESS A FOR", COLOR_WHITE, COLOR_BLACK);
-        lcd_draw_string(60, SCREEN_HEIGHT/2 + 25, "NEXT LVL", COLOR_WHITE, COLOR_BLACK);
+        lcd_fill_rect(40, SCREEN_HEIGHT/2 - 30, 160, 70, COLOR_BLACK);
+        lcd_draw_rect(40, SCREEN_HEIGHT/2 - 30, 160, 70, COLOR_GREEN);
+        lcd_draw_string(50, SCREEN_HEIGHT/2 - 20, "LEVEL DONE!", COLOR_GREEN, COLOR_BLACK);
+        lcd_draw_string(50, SCREEN_HEIGHT/2 - 5, "A: Next level", COLOR_WHITE, COLOR_BLACK);
+        lcd_draw_string(50, SCREEN_HEIGHT/2 + 10, "B: Exit to menu", COLOR_WHITE, COLOR_BLACK);
+    } else if (game.paused) {
+        lcd_fill_rect(40, SCREEN_HEIGHT/2 - 30, 160, 60, COLOR_BLACK);
+        lcd_draw_rect(40, SCREEN_HEIGHT/2 - 30, 160, 60, COLOR_YELLOW);
+        lcd_draw_string(75, SCREEN_HEIGHT/2 - 20, "PAUSED", COLOR_YELLOW, COLOR_BLACK);
+        lcd_draw_string(50, SCREEN_HEIGHT/2 - 5, "A: Resume", COLOR_WHITE, COLOR_BLACK);
+        lcd_draw_string(50, SCREEN_HEIGHT/2 + 10, "B: Exit to menu", COLOR_WHITE, COLOR_BLACK);
     }
 }
 
@@ -597,6 +657,11 @@ static int grid_to_screen_y(int gy) {
 }
 
 void frogger_game_loop(void) {
+    static int loop_count = 0;
+    if (++loop_count % 60 == 0) {
+        ESP_LOGI(TAG, "Game loop running... (frame %d)", loop_count);
+    }
+    
     frogger_handle_input();
     frogger_update();
     frogger_render();
