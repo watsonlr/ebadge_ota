@@ -201,6 +201,34 @@ esp_err_t menu_init(void) {
     // Initialize buttons
     init_buttons();
     
+    // Read all button states to initialize button arrays (prevent phantom presses)
+    for (int i = 0; i < 50; i++) {
+        gpio_get_level(BTN_UP);
+        gpio_get_level(BTN_DOWN);
+        gpio_get_level(BTN_LEFT);
+        gpio_get_level(BTN_RIGHT);
+        gpio_get_level(BTN_A);
+        gpio_get_level(BTN_B);
+        vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    
+    // Initialize button states to current GPIO levels
+    btn_state[0] = gpio_get_level(BTN_UP);
+    btn_last[0] = btn_state[0];
+    btn_state[1] = gpio_get_level(BTN_DOWN);
+    btn_last[1] = btn_state[1];
+    btn_state[2] = gpio_get_level(BTN_LEFT);
+    btn_last[2] = btn_state[2];
+    btn_state[3] = gpio_get_level(BTN_RIGHT);
+    btn_last[3] = btn_state[3];
+    btn_state[4] = gpio_get_level(BTN_A);
+    btn_last[4] = btn_state[4];
+    btn_state[5] = gpio_get_level(BTN_B);
+    btn_last[5] = btn_state[5];
+    
+    // Wait a bit more for everything to stabilize
+    vTaskDelay(pdMS_TO_TICKS(100));
+    
     // Load game database
     menu_state.game_count = sizeof(game_database) / sizeof(game_info_t);
     memcpy(menu_state.games, game_database, sizeof(game_database));
@@ -290,7 +318,9 @@ void menu_render(void) {
         }
         
         draw_scrollbar();
-        lcd_draw_string(10, SCREEN_HEIGHT - 25, "L/R:Select A:Play", 
+        lcd_draw_string(10, SCREEN_HEIGHT - 45, "A-Select", 
+                        COLOR_GRAY, COLOR_BLACK);
+        lcd_draw_string(10, SCREEN_HEIGHT - 25, "B-Return", 
                         COLOR_GRAY, COLOR_BLACK);
         menu_state.full_redraw = false;
     } else {
