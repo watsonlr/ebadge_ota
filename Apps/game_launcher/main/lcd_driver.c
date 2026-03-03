@@ -161,7 +161,7 @@ esp_err_t lcd_init(void) {
     lcd_data(&d2, 1);
     
     lcd_cmd(CMD_DISPON);
-    vTaskDelay(pdMS_TO_TICKS(100));
+    vTaskDelay(pdMS_TO_TICKS(200));  // Increased delay for display stabilization
     
     ESP_LOGI(TAG, "LCD initialized successfully");
     return ESP_OK;

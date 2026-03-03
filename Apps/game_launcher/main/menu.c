@@ -191,7 +191,12 @@ static void draw_scrollbar(void) {
 esp_err_t menu_init(void) {
     // Initialize LCD
     lcd_init();
+    
+    // Clear screen twice to flush any garbage from display RAM
     lcd_fill_screen(COLOR_BLACK);
+    vTaskDelay(pdMS_TO_TICKS(50));  // Wait for clear to complete
+    lcd_fill_screen(COLOR_BLACK);
+    vTaskDelay(pdMS_TO_TICKS(50));  // Wait for second clear
     
     // Initialize buttons
     init_buttons();
@@ -322,24 +327,50 @@ void menu_launch_game(int index) {
     
     // Show loading screen
     lcd_fill_screen(COLOR_BLACK);
-    lcd_draw_string(50, 140, "LOADING...", COLOR_WHITE, COLOR_BLACK);
+    lcd_draw_string(50, 140, "LAUNCHING...", COLOR_WHITE, COLOR_BLACK);
     lcd_draw_string(30, 160, game->name, game->color, COLOR_BLACK);
     
-    ESP_LOGI(TAG, "Would launch: %s", game->name);
-    ESP_LOGI(TAG, "OTA URL: %s", game->ota_url);
+    ESP_LOGI(TAG, "Launching: %s", game->name);
     
-    // TODO: Implement actual OTA update
-    // For now, just show a message
-    vTaskDelay(pdMS_TO_TICKS(2000));
+    // Map game index to OTA partition (pacman=ota_0, tetris=ota_1, frogger=ota_2)
+    esp_partition_subtype_t subtype = ESP_PARTITION_SUBTYPE_APP_OTA_0 + index;
     
-    lcd_draw_string(20, 200, "OTA not yet implemented", COLOR_YELLOW, COLOR_BLACK);
-    lcd_draw_string(20, 220, "Flash game manually", COLOR_GRAY, COLOR_BLACK);
+    // Find the partition
+    const esp_partition_t* partition = esp_partition_find_first(
+        ESP_PARTITION_TYPE_APP,
+        subtype,
+        NULL
+    );
     
-    vTaskDelay(pdMS_TO_TICKS(3000));
+    if (partition == NULL) {
+        ESP_LOGE(TAG, "Partition not found for %s", game->name);
+        lcd_draw_string(20, 200, "Game not installed!", COLOR_RED, COLOR_BLACK);
+        lcd_draw_string(20, 220, "Flash game first", COLOR_GRAY, COLOR_BLACK);
+        vTaskDelay(pdMS_TO_TICKS(3000));
+        menu_state.full_redraw = true;
+        menu_state.needs_redraw = true;
+        return;
+    }
     
-    // Force full menu redraw when returning
-    menu_state.full_redraw = true;
-    menu_state.needs_redraw = true;
+    ESP_LOGI(TAG, "Found partition: %s at 0x%lx", partition->label, partition->address);
+    
+    // Set the partition as boot partition
+    esp_err_t err = esp_ota_set_boot_partition(partition);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to set boot partition: %s", esp_err_to_name(err));
+        lcd_draw_string(20, 200, "Boot failed!", COLOR_RED, COLOR_BLACK);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+        menu_state.full_redraw = true;
+        menu_state.needs_redraw = true;
+        return;
+    }
+    
+    ESP_LOGI(TAG, "Rebooting into %s...", game->name);
+    lcd_draw_string(30, 200, "Starting game...", COLOR_GREEN, COLOR_BLACK);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    
+    // Restart into the game
+    esp_restart();
 }
 
 /**
