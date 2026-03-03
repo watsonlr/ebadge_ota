@@ -318,9 +318,9 @@ void menu_render(void) {
         }
         
         draw_scrollbar();
-        lcd_draw_string(10, SCREEN_HEIGHT - 45, "A-Select", 
+        lcd_draw_string(10, SCREEN_HEIGHT - 45, "BtnA=SELECT", 
                         COLOR_GRAY, COLOR_BLACK);
-        lcd_draw_string(10, SCREEN_HEIGHT - 25, "B-Return", 
+        lcd_draw_string(10, SCREEN_HEIGHT - 25, "BtnB=RETURN", 
                         COLOR_GRAY, COLOR_BLACK);
         menu_state.full_redraw = false;
     } else {

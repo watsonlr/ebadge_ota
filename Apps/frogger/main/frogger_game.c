@@ -11,6 +11,8 @@
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_random.h"
+#include "esp_ota_ops.h"
+#include "esp_partition.h"
 #include <string.h>
 #include <stdlib.h>
 #include <math.h>
@@ -355,16 +357,44 @@ static void kill_frog(void) {
     }
 }
 
+static void return_to_launcher(void) {
+    ESP_LOGI(TAG, "Returning to launcher...");
+    
+    // Show message
+    lcd_fill_screen(COLOR_BLACK);
+    lcd_draw_string(20, 140, "Returning to", COLOR_WHITE, COLOR_BLACK);
+    lcd_draw_string(40, 160, "Launcher...", COLOR_WHITE, COLOR_BLACK);
+    vTaskDelay(pdMS_TO_TICKS(1000));
+    
+    // Find factory partition (where launcher is)
+    const esp_partition_t* factory = esp_partition_find_first(
+        ESP_PARTITION_TYPE_APP,
+        ESP_PARTITION_SUBTYPE_APP_FACTORY,
+        NULL
+    );
+    
+    if (factory != NULL) {
+        esp_ota_set_boot_partition(factory);
+        esp_restart();
+    } else {
+        ESP_LOGE(TAG, "Factory partition not found!");
+        lcd_draw_string(20, 200, "Error: Can't find", COLOR_RED, COLOR_BLACK);
+        lcd_draw_string(20, 220, "launcher partition", COLOR_RED, COLOR_BLACK);
+        vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+
 void frogger_handle_input(void) {
     if (game.game_over) {
         if (read_button(BTN_B, 5)) {
-            frogger_reset_game();
+            return_to_launcher();
         }
         return;
     }
     
     if (game.level_complete) {
-        if (read_button(BTN_A, 4) || read_button(BTN_B, 5)) {
+        // Button A - Next level
+        if (read_button(BTN_A, 4)) {
             game.level++;
             game.level_complete = false;
             game.time_remaining = 60;
@@ -372,6 +402,10 @@ void frogger_handle_input(void) {
             game.frog.x = GRID_WIDTH / 2;
             game.frog.y = 1;
             init_level();
+        }
+        // Button B - Return to launcher
+        if (read_button(BTN_B, 5)) {
+            return_to_launcher();
         }
         return;
     }
